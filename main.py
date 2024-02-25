@@ -1,8 +1,20 @@
 import pygetwindow as gw
 import pyautogui
-
 from PIL import Image
 import mss
+
+# Initialize counters for each color
+color_counters = {'red': 0, 'green': 0, 'blue': 0}
+
+# Define RGB ranges for each color
+color_ranges = {
+    'red': ((200, 0, 0), (255, 50, 50)),
+    'green': ((0, 200, 0), (50, 255, 50)),
+    'blue': ((0, 0, 200), (50, 50, 255))
+}
+
+def is_color_within_range(color, color_range):
+    return all(low <= color_component <= high for color_component, (low, high) in zip(color, zip(*color_range)))
 
 def center_window(title):
     try:
@@ -34,40 +46,41 @@ def get_center_pixel_color(screen_width, screen_height):
         # Get pixels
         return img.getpixel((0,0))
     
-def capture_application_region(title, save_path="capture.png"):
+def capture_and_analyze_region(title, save_path="capture.png"):
     try:
-        win = gw.getWindowsWithTitle(title)[0]  # Assume gw is defined and imported correctly
+        win = gw.getWindowsWithTitle(title)[0]
         if win:
-            # Adjust these values based on the offset and size of the target region within the app
-            offsetX, offsetY = 100, 100  # Example offsets from the top-left corner of the window
-            regionWidth, regionHeight = 200, 200  # Size of the region to capture
-            
+            # Calculate the region to capture, e.g., center of the window
+            region = calculate_capture_region(win)
             with mss.mss() as sct:
-                monitor = {
-                    "top": win.top + offsetY,
-                    "left": win.left + offsetX,
-                    "width": regionWidth,
-                    "height": regionHeight
-                }
-                sct_img = sct.grab(monitor)
-                
-                # Convert to PIL.Image for easier manipulation
+                sct_img = sct.grab(region)
                 img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
-                
-                # Save the image for visual inspection
                 img.save(save_path)
-                print(f"Saved capture to {save_path}")
+                center_pixel_color = img.getpixel((region['width'] // 2, region['height'] // 2))
+                update_color_counters(center_pixel_color)
+                print(f"Saved capture to {save_path}. Center Pixel Color: {center_pixel_color}\n")
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"\nError: {e}\n")
+
+def calculate_capture_region(win):
+    """Calculate the region to capture based on the window position and size."""
+    offsetX, offsetY = win.width // 2 - 100, win.height // 2 - 150
+    regionWidth, regionHeight = 200, 200
+    return {"top": win.top + offsetY, "left": win.left + offsetX, "width": regionWidth, "height": regionHeight}
+
+def update_color_counters(color):
+    """Increment the counter for the detected color."""
+    for color_name, color_range in color_ranges.items():
+        if is_color_within_range(color, color_range):
+            color_counters[color_name] += 1
+            print(f"\nIncremented {color_name} counter to {color_counters[color_name]}\n")
+            break
 
 
-# First, center the application screen
-center_window("mGBA - Kingdom Hearts - Chain of Memories (USA)")
+# Main Workflow
+application_title = "mGBA - Kingdom Hearts - Chain of Memories (USA)"
+center_window(application_title)  # Ensure the application window is centered
+capture_and_analyze_region(application_title, "cardcolor.png")  # Capture and analyze the region of interest
 
-# We'll need more testing to get the exact location of the card colors
-# These will be baseline values for our crude approximation of the card color location
-
-left = 100  # Distance from the left edge of the screen
-top = 100   # Distance from the top edge of the screen
-width = 200 # Width of the capture region
-height = 150 # Height of the capture region
+# Display color counter for testing purposes
+print(color_counters)

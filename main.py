@@ -6,11 +6,11 @@ import mss
 # Initialize counters for each color
 color_counters = {'red': 0, 'green': 0, 'blue': 0}
 
-# Define RGB ranges for each color
+# Define RGB ranges for each color within +/- 10 of actual rgb values
 color_ranges = {
-    'red': ((200, 0, 0), (255, 50, 50)),
-    'green': ((0, 200, 0), (50, 255, 50)),
-    'blue': ((0, 0, 200), (50, 50, 255))
+    'red': ((200, 0, 0), (255, 50, 50)),       # RGB: rgb(214, 16, 0)
+    'green': ((10, 175, 5), (30, 185, 15)),    # RGB: rgb(16, 181, 8)
+    'blue': ((10, 50, 150), (40, 100, 200))    # RGB: rgb(24, 82, 181)
 }
 
 def is_color_within_range(color, color_range):

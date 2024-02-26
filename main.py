@@ -2,6 +2,45 @@ import pygetwindow as gw
 import pyautogui
 from PIL import Image
 import mss
+import time
+from skimage.metrics import structural_similarity as ssim
+import cv2
+import numpy as np
+
+# Logic for determining the beginning of a battle sequence
+def compare_images(img1, img2):
+    """Compute the similarity index between two images."""
+    # Convert images to grayscale
+    img1_gray = cv2.cvtColor(img1, cv2.COLOR_BGR2GRAY)
+    img2_gray = cv2.cvtColor(img2, cv2.COLOR_BGR2GRAY)
+    
+    # Compute SSIM between two images
+    score, _ = ssim(img1_gray, img2_gray, full=True)
+    return score
+
+def capture_screenshot(region):
+    """Capture a screenshot of the specified region."""
+    with mss.mss() as sct:
+        sct_img = sct.grab(region)
+        img = np.array(Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX"))
+        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)  # Convert from PIL to OpenCV format
+        return img
+
+def monitor_for_battle_start(application_title, reference_image_path, monitor_region, similarity_threshold=0.8):
+    """Monitor for the battle start by comparing live screenshots to a reference image."""
+    reference_image = cv2.imread(reference_image_path, cv2.IMREAD_COLOR)
+    
+    while True:
+        current_screenshot = capture_screenshot(monitor_region)
+        similarity_score = compare_images(current_screenshot, reference_image)
+        
+        if similarity_score >= similarity_threshold:
+            # Similarity threshold met or exceeded, indicating battle start
+            print("Battle start detected. Similarity score:", similarity_score)
+            capture_and_analyze_region(application_title)
+            break  # Or continue, depending on whether you want to keep monitoring
+        
+        time.sleep(0.1)  # Adjust based on how fast the animation occurs and system performance
 
 # Initialize counters for each color
 color_counters = {'red': 0, 'green': 0, 'blue': 0}
@@ -78,9 +117,15 @@ def update_color_counters(color):
 
 
 # Main Workflow
+        
 application_title = "mGBA - Kingdom Hearts - Chain of Memories (USA)"
+
+# Path to your reference image indicating battle start
+reference_image_path = "C:/Users/daniel/Documents/Visual Studio Code/COM Card Counter/Resources/battle_indicator.png"
+
 center_window(application_title)  # Ensure the application window is centered
 capture_and_analyze_region(application_title, "cardcolor.png")  # Capture and analyze the region of interest
+monitor_for_battle_start(application_title, reference_image_path, monitor_region, similarity_threshold=0.8)
 
 # Display color counter for testing purposes
 print(color_counters)

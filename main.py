@@ -7,6 +7,39 @@ from skimage.metrics import structural_similarity as ssim
 import cv2
 import numpy as np
 
+# Global Variables #
+
+# Define RGB ranges for each color within +/- 10 of actual rgb values
+color_ranges = {
+    'red': ((200, 0, 0), (255, 50, 50)),       # RGB: rgb(214, 16, 0)
+    'green': ((10, 175, 5), (30, 185, 15)),    # RGB: rgb(16, 181, 8)
+    'blue': ((10, 50, 150), (40, 100, 200))    # RGB: rgb(24, 82, 181)
+}
+
+# Initialize counters for each color
+color_counters = {'red': 0, 'green': 0, 'blue': 0}
+
+application_title = "mGBA - Kingdom Hearts - Chain of Memories (USA)"
+battle_started_reference_image_path = "C:/Users/daniel/Documents/Visual Studio Code/COM Card Counter/Resources/battle_indicator.png"
+win = gw.getWindowsWithTitle(application_title)[0]
+
+offsetX, offsetY = win.width // 2 - 100, win.height // 2 - 150
+regionWidth, regionHeight = 200, 200
+region = {"top": win.top + offsetY, "left": win.left + offsetX, "width": regionWidth, "height": regionHeight}
+
+
+# Main Workflow #
+def main() :
+    center_window(application_title)  # Ensure the application window is centered
+    capture_and_analyze_region()  # Capture and analyze the region of interest
+    monitor_for_battle_start(application_title, battle_started_reference_image_path, region, similarity_threshold=0.8)
+
+    # Display color counter for testing purposes
+    print(color_counters)
+
+
+# Methods #
+
 # Logic for determining the beginning of a battle sequence
 def compare_images(img1, img2):
     """Compute the similarity index between two images."""
@@ -23,8 +56,18 @@ def capture_screenshot(region):
     with mss.mss() as sct:
         sct_img = sct.grab(region)
         img = np.array(Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX"))
-        img = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)  # Convert from PIL to OpenCV format
-        return img
+        return cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+
+def is_color_within_range(color, color_range):
+    return all(low <= color_component <= high for color_component, (low, high) in zip(color, zip(*color_range)))
+
+def update_color_counters(color):
+    """Increment the counter for the detected color."""
+    for color_name, color_range in color_ranges.items():
+        if is_color_within_range(color, color_range):
+            color_counters[color_name] += 1
+            print(f"\nIncremented {color_name} counter to {color_counters[color_name]}\n")
+            break
 
 def monitor_for_battle_start(application_title, reference_image_path, monitor_region, similarity_threshold=0.8):
     """Monitor for the battle start by comparing live screenshots to a reference image."""
@@ -41,19 +84,6 @@ def monitor_for_battle_start(application_title, reference_image_path, monitor_re
             break  # Or continue, depending on whether you want to keep monitoring
         
         time.sleep(0.1)  # Adjust based on how fast the animation occurs and system performance
-
-# Initialize counters for each color
-color_counters = {'red': 0, 'green': 0, 'blue': 0}
-
-# Define RGB ranges for each color within +/- 10 of actual rgb values
-color_ranges = {
-    'red': ((200, 0, 0), (255, 50, 50)),       # RGB: rgb(214, 16, 0)
-    'green': ((10, 175, 5), (30, 185, 15)),    # RGB: rgb(16, 181, 8)
-    'blue': ((10, 50, 150), (40, 100, 200))    # RGB: rgb(24, 82, 181)
-}
-
-def is_color_within_range(color, color_range):
-    return all(low <= color_component <= high for color_component, (low, high) in zip(color, zip(*color_range)))
 
 def center_window(title):
     try:
@@ -85,13 +115,11 @@ def get_center_pixel_color(screen_width, screen_height):
         # Get pixels
         return img.getpixel((0,0))
     
-def capture_and_analyze_region(title, save_path="capture.png"):
+def capture_and_analyze_region():
     try:
-        win = gw.getWindowsWithTitle(title)[0]
         if win:
-            # Calculate the region to capture, e.g., center of the window
-            region = calculate_capture_region(win)
             with mss.mss() as sct:
+                save_path="cardcolor.png"
                 sct_img = sct.grab(region)
                 img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
                 img.save(save_path)
@@ -101,31 +129,6 @@ def capture_and_analyze_region(title, save_path="capture.png"):
     except Exception as e:
         print(f"\nError: {e}\n")
 
-def calculate_capture_region(win):
-    """Calculate the region to capture based on the window position and size."""
-    offsetX, offsetY = win.width // 2 - 100, win.height // 2 - 150
-    regionWidth, regionHeight = 200, 200
-    return {"top": win.top + offsetY, "left": win.left + offsetX, "width": regionWidth, "height": regionHeight}
-
-def update_color_counters(color):
-    """Increment the counter for the detected color."""
-    for color_name, color_range in color_ranges.items():
-        if is_color_within_range(color, color_range):
-            color_counters[color_name] += 1
-            print(f"\nIncremented {color_name} counter to {color_counters[color_name]}\n")
-            break
-
-
-# Main Workflow
-        
-application_title = "mGBA - Kingdom Hearts - Chain of Memories (USA)"
-
-# Path to your reference image indicating battle start
-reference_image_path = "C:/Users/daniel/Documents/Visual Studio Code/COM Card Counter/Resources/battle_indicator.png"
-
-center_window(application_title)  # Ensure the application window is centered
-capture_and_analyze_region(application_title, "cardcolor.png")  # Capture and analyze the region of interest
-monitor_for_battle_start(application_title, reference_image_path, monitor_region, similarity_threshold=0.8)
-
-# Display color counter for testing purposes
-print(color_counters)
+# Script Entry Point #
+if __name__ == "__main__":
+    main()

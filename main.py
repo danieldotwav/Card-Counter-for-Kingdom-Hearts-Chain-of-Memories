@@ -6,6 +6,7 @@ import time
 from skimage.metrics import structural_similarity as ssim
 import cv2
 import numpy as np
+import sys
 
 # Global Variables #
 
@@ -30,12 +31,14 @@ region = {"top": win.top + offsetY, "left": win.left + offsetX, "width": regionW
 
 # Main Workflow #
 def main() :
-    center_window(application_title)  # Ensure the application window is centered
-    capture_and_analyze_region()  # Capture and analyze the region of interest
-    monitor_for_battle_start(application_title, battle_started_reference_image_path, region, similarity_threshold=0.8)
+    while gw.getWindowsWithTitle(application_title):
+        center_window(application_title)  # Ensure the application window is centered
+        capture_and_analyze_region()  # Capture and analyze the region of interest
+        # Display color counter for testing purposes
+        print(color_counters)
+        monitor_for_battle_start(application_title, battle_started_reference_image_path, region, similarity_threshold=0.8)
 
-    # Display color counter for testing purposes
-    print(color_counters)
+    sys.exit(0)
 
 
 # Methods #
@@ -117,9 +120,14 @@ def get_center_pixel_color(screen_width, screen_height):
     
 def capture_and_analyze_region():
     try:
+        global win  # Ensure you're using the global variable
+        win = gw.getWindowsWithTitle(application_title)[0]  # Refresh the window object to get the latest position
         if win:
+            offsetX, offsetY = win.width // 2 - 100, win.height // 2 - 150
+            region = {"top": win.top + offsetY, "left": win.left + offsetX, "width": regionWidth, "height": regionHeight}
+            
             with mss.mss() as sct:
-                save_path="cardcolor.png"
+                save_path = "cardcolor.png"
                 sct_img = sct.grab(region)
                 img = Image.frombytes("RGB", sct_img.size, sct_img.bgra, "raw", "BGRX")
                 img.save(save_path)
